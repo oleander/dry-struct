@@ -93,6 +93,15 @@ module Dry
     class << self
       # override `Dry::Types::Builder#prepend`
       define_method(:prepend, ::Module.method(:prepend))
+
+      def Structable(config = Dry::Core::Constants::EMPTY_HASH)
+        Module.new do
+          define_singleton_method(:included) do |base|
+            super(base)
+            base.include(Structable::Sum.new(base, config))
+          end
+        end
+      end
     end
 
     autoload :Value, "dry/struct/value"
