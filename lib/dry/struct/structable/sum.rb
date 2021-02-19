@@ -19,15 +19,9 @@ module Dry
 
         private
 
-        def prepended(*)
-          super.tap { setup }
-        end
-
         def included(*)
-          super.tap { @scope.prepend(self) }
-        end
+          super
 
-        def setup
           if meta.method_defined?(:__type__)
             raise Error, "[__type__] already defined on [#{@scope}]"
           end
