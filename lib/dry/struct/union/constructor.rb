@@ -22,23 +22,24 @@ module Dry
         attribute? :include, Types::Constants.constrained(min_size: 1)
         attribute :exclude, Types::Constants.default(EMPTY_ARRAY)
         attribute :scope, Types::Instance(Module)
-        attribute :cache, Types::Instance(Concurrent::Map).default {
+        attribute(:cache, Types::Instance(Concurrent::Map).default do
           Concurrent::Map.new do |store, key|
             store.fetch_or_store(key, Concurrent::Map.new)
           end
-        }
+        end)
 
         schema schema.strict
 
-        # Binds {self} to {#scope} and returns an instance
+        # Calls {#bind} and returns and instance of {Constructor}
         #
         # @return [Constructor]
         def self.call(**options)
           super(**options).tap(&:bind)
         end
 
-        # Creates sum type from {#types}
-        # Returns a lazy error when no types are found
+        # Creates {Dry::Struct::Sum} type from types found in {#scope}
+        # Returns a lazy error {Types::Constructor) when {#types} is empty
+        # Calls are cached and expires when new constants appears on {#scope}
         #
         # @return [Dry::Struct::Sum]
         def sum
@@ -49,28 +50,27 @@ module Dry
           end
         end
 
-        # Retrieves types in {scope}, filteres out the non-types using {#constructor?}
+        # Excludes constants passed by user via {exclude:}
+        # Includes constants passed by user via {include:}
+        # Falls back to local constants in {#scope}
+        # Uses {#constructor?} to exclude incompatible types
+        # @see {Extensions} for information about {#constructor?}
+        # @see {#sum} for information about caching
         #
-        # @return [Array<Dry::Struct, Dry::Struct::Union>]
+        # @return [Array<#constructor?>]
         def types
           compute_cache(:types) do
             (included - excluded).map(&method(:to_const)).select(&:constructor?)
           end
         end
 
-        # Cache key used for {#types}
-        #
-        # @return [Array<Symbol>]
-        def key
-          scope.constants(false)
-        end
-
-        # Pretty prints module using {#types}
+        # Pretty prints {#types}
+        # @see {#sum} for information about caching
         #
         # @return [String]
         def name
           compute_cache(:name) do
-            "%<name>s<[%<type>s]>" % {type: joined_names, name: scope}
+            "%<name>s<[%<type>s]>" % {type: joined_types, name: scope}
           end
         end
 
@@ -81,10 +81,13 @@ module Dry
           true
         end
 
-        # Delegates calls on {#scope} to {#sum} and {self}
-        # Uses methods found in {Dry::Struct::Sum} to determine which ones
+        # Delegates calls on {#scope} to {#sum} and {#name}
+        # Maps all instance methods on {Dry::Struct::Sum} to {#scope}
+        #
+        # @return [Void]
+        # @private
         def bind(constructor: self)
-          %i[__sum__ __types__ name constructor? clear_cache].each do |name|
+          %i[__sum__ __types__ name constructor?].each do |name|
             scope.define_singleton_method(name) do |*args, &block|
               constructor.__send__(name, *args, &block)
             end
@@ -97,44 +100,57 @@ module Dry
               constructor.sum.__send__(method, *args, &block)
             end
           end
-
-          # Used for the {#constructor?} method
-          unless scope.include?(Union)
-            scope.extend(Union)
-          end
         end
 
         private
 
-        # All types to be included
-        # The order is preserved
+        # Cache key used to cached calls
+        #
+        # @return [Array<Symbol>]
+        def key
+          scope.constants(false)
+        end
+
+        # All types to be used by {#types}
+        # The order specified will be preserved
+        # Falls back to local constants on {#scope}
         #
         # @return [Array<Symbol>]
         def included
           include || scope.constants(false).sort
         end
 
-        # Cache handler used by heavy internal methods
+        # Cache handler used by the public API
+        #
+        # @name [Symbol] Method name
+        # @block [Proc] To be cached
+        # @return [Any]
         def compute_cache(name, &block)
           cache[key][name] ||= block.call
         end
 
+        # Renders {#types} on the form "Type2 | Type2 | ..."
+        # Falls back to "Unknown" when type has no name
+        #
         # @return [String]
-        def joined_names
+        def joined_types
           types.map { |t| t.name || "Unknown" }.join(" | ")
         end
 
-        # Fetches {name} constant from {scope}
+        # Retrieves the given constant from {#scope}
         #
-        # @param name [Symbol]
-        # @return [Constant]
+        # @name [Symbol] Constant name
+        # @return [Constant] The constant
+        # @raise [Error] When {name} cannot be found
         def to_const(name)
           scope.const_get(name)
         rescue NameError
           raise Error, "Constant [#{name}] not defined in [#{scope}]"
         end
 
+        # Renamed to be inline with {#included}
         alias_method :excluded, :exclude
+        # Bound to {Union}s public interface
         alias_method :__types__, :types
         alias_method :__sum__, :sum
       end
