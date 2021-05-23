@@ -122,7 +122,9 @@ module Dry
           include || module_constants
         end
 
-        # Cache handler used by the public API
+        # Caches the result of {block} using the names of the
+        # modules found in #{scope} as a cache key. The cache
+        # is cleared whenever the {#scope} changes (i.e module is removed)
         #
         # @name [Symbol] Method name
         # @block [Proc] To be cached
@@ -138,14 +140,13 @@ module Dry
         end
 
         # Renders {#types} on the form "Type2 | Type2 | ..."
-        # Falls back to "Unknown" when type has no name
         #
         # @return [String]
         def joined_types
           types.map { |t| t.__name__ || "Anonymous" }.join(" | ")
         end
 
-        # Retrieves constant {name} from {#scope}
+        # Retrieves constant with name {name} from {#scope}
         #
         # @name [Symbol] Constant name
         # @return [Constant] The constant
@@ -160,6 +161,7 @@ module Dry
         alias_method :excluded, :exclude
         # Bound to {Union}s public interface
         alias_method :__types__, :types
+        # Used for debugging
         alias_method :__sum__, :sum
       end
     end
