@@ -19,14 +19,10 @@ module Dry
         end
 
         # @see Dry::Struct::Union
+        attribute(:cache, Types::Hash.default { Hash.new(EMPTY_HASH.dup) })
         attribute? :include, Types::Constants.constrained(min_size: 1)
         attribute :exclude, Types::Constants.default(EMPTY_ARRAY)
         attribute :scope, Types::Instance(Module)
-        attribute(:cache, Types::Instance(Concurrent::Map).default do
-          Concurrent::Map.new do |store, key|
-            store.fetch_or_store(key, Concurrent::Map.new)
-          end
-        end)
 
         using(Module.new {
           refine Dry::Struct.singleton_class do
@@ -132,9 +128,13 @@ module Dry
         # @block [Proc] To be cached
         # @return [Any]
         def compute_cache(name, current_key = key, &block)
-          cache[current_key].fetch_or_store(name, &block)
+          cache[current_key][name] ||= block.call
         ensure # Remove old keys to prevent memory leaks
-          (cache.keys - [current_key]).each(&cache.method(:delete))
+          if @latest_key != current_key
+            cache.delete(@latest_key)
+          end
+
+          @latest_key = current_key
         end
 
         # Renders {#types} on the form "Type2 | Type2 | ..."
@@ -142,10 +142,10 @@ module Dry
         #
         # @return [String]
         def joined_types
-          types.map { |t| t.__name__ || "Unknown" }.join(" | ")
+          types.map { |t| t.__name__ || "Anonymous" }.join(" | ")
         end
 
-        # Retrieves the given constant from {#scope}
+        # Retrieves constant {name} from {#scope}
         #
         # @name [Symbol] Constant name
         # @return [Constant] The constant
