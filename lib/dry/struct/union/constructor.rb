@@ -36,18 +36,18 @@ module Dry
 
         schema schema.strict
 
-        # Calls {#bind} and returns and instance of {Constructor}
+        # Allows calls on {scope} to be dispatched to {self}
         #
+        # @see #bind
         # @return [Constructor]
         def self.call(**options)
           super(**options).tap(&:bind)
         end
 
-        # Creates {Dry::Struct::Sum} type from types found in {#scope}
-        # Returns a lazy error {Types::Constructor) when {#types} is empty
-        # Calls are cached and expires when new constants appears on {#scope}
+        # Constructs {Dry::Struct::Sum} from structs found in {#scope}
         #
-        # @return [Dry::Struct::Sum]
+        # @raises [Dry::Struct::Error] When {#scope} is empty
+        # @return [Dry::Struct::Sum | Types::Constructor]
         def sum
           compute_cache(:sum) do
             types.reduce(:|) || Types.Constructor(Dry::Struct::Sum) do
@@ -60,6 +60,7 @@ module Dry
         # Includes constants passed by user via {include:}
         # Falls back to local constants in {#scope}
         # Uses {#constructor?} to exclude incompatible types
+        #
         # @see {Extensions} for information about {#constructor?}
         # @see {#sum} for information about caching
         #
@@ -87,10 +88,9 @@ module Dry
           true
         end
 
-        # Delegates calls on {#scope} to {#sum} and {#name}
-        # Maps all instance methods on {Dry::Struct::Sum} to {#scope}
+        # Allows {#scope} to behave like a {Dry::Struct}
+        # by dispatching calls on {#scope} to {Constructor#sum}
         #
-        # @return [Void]
         # @private
         def bind(constructor: self)
           class << scope
@@ -98,9 +98,7 @@ module Dry
           end
 
           %i[__sum__ __types__ constructor? name].each do |name|
-            scope.define_singleton_method(name) do |*args, &block|
-              constructor.__send__(name, *args, &block)
-            end
+            scope.define_singleton_method(name, &method(name))
           end
 
           Sum.instance_methods(true).each do |method|
@@ -133,8 +131,10 @@ module Dry
         # @name [Symbol] Method name
         # @block [Proc] To be cached
         # @return [Any]
-        def compute_cache(name, &block)
-          cache[key][name] ||= block.call
+        def compute_cache(name, current_key = key, &block)
+          cache[current_key].fetch_or_store(name, &block)
+        ensure # Remove old keys to prevent memory leaks
+          (cache.keys - [current_key]).each(&cache.method(:delete))
         end
 
         # Renders {#types} on the form "Type2 | Type2 | ..."

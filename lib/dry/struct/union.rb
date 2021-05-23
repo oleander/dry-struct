@@ -4,15 +4,14 @@ require "dry/struct"
 
 module Dry
   class Struct
-    # Allows modules to be treated structs ({Dry::Struct::Sum})
-    # Calls on the module get dispatched to {Constructor#sum}
-    # which is responsible for constructing a sum type consisting
-    # of constants within the module. The module can be shared by
-    # other constants as only the compatible types are selected
+    # Allows modules to be treated as a sum struct ({Dry::Struct::Sum}).
+    # Calls on the module automatically get dispatched to {Constructor#sum}.
+    # {Constructor} is responsible for constructing a sum type consisting
+    # of structs found within the module.
     #
     # @see [Struct.Union] for filtering and re-ordering options
     #
-    # @example A module type of days of the week
+    # @example A module representing the days of the week
     #   module Day
     #     include Dry::Struct::Union
     #
@@ -44,8 +43,8 @@ module Dry
     # Allows the dispach receiver, {Constructor#sum} to be configued
     # and re-ordered using {Union(exclude: [...], include: [...])}
     #
-    # @option include: [Array<Symbol>] Constants to be included
-    # @option exclude: [Array<Symbol>] Constants to be excluded
+    # @option include: [Array<Symbol>] Structs to be included
+    # @option exclude: [Array<Symbol>] Structs to be excluded
     # @raise [Dry::Struct::Error]
     # @return [Module]
     # @see [Union]
