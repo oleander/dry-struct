@@ -110,5 +110,37 @@ RSpec.describe Dry::Struct::Union do
       end
     end
   end
+
+  fdescribe ".call" do
+    context "given a union module containing a struct" do
+      subject(:struct) do
+        Module.new do
+          include Dry::Struct::Union
+        end
+      end
+
+      before do
+        struct.const_set(:A, Class.new(Dry::Struct))
+      end
+
+      it { is_expected.to have_attributes(__types__: [struct::A]) }
+
+      context "when a struct is added" do
+        before do
+          struct.const_set(:B, Class.new(Dry::Struct))
+        end
+
+        it { is_expected.to have_attributes(__types__: [struct::A, struct::B]) }
+
+        context "when a struct is deleted" do
+          before do
+            struct.send(:remove_const, :A)
+          end
+
+          it { is_expected.to have_attributes(__types__: [struct::B]) }
+        end
+      end
+    end
+  end
 end
 # rubocop:enable Lint/ConstantDefinitionInBlock
