@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable Lint/ConstantDefinitionInBlock
 describe Dry::Struct::Union do
   context "given a union" do
     it "raises no error" do
@@ -79,3 +80,4 @@ describe Dry::Struct::Union do
     end
   end
 end
+# rubocop:enable Lint/ConstantDefinitionInBlock

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable Lint/ConstantDefinitionInBlock
 RSpec.describe Dry::Struct::Union do
   describe Fixtures do
     let(:remove) { "" }
@@ -110,3 +111,4 @@ RSpec.describe Dry::Struct::Union do
     end
   end
 end
+# rubocop:enable Lint/ConstantDefinitionInBlock
