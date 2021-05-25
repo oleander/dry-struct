@@ -111,7 +111,7 @@ RSpec.describe Dry::Struct::Union do
     end
   end
 
-  fdescribe ".call" do
+  describe ".call" do
     context "given a union module containing a struct" do
       subject(:struct) do
         Module.new do
@@ -120,6 +120,7 @@ RSpec.describe Dry::Struct::Union do
       end
 
       before do
+        struct.__types__ # fake an existing cache
         struct.const_set(:A, Class.new(Dry::Struct))
       end
 
@@ -127,6 +128,7 @@ RSpec.describe Dry::Struct::Union do
 
       context "when a struct is added" do
         before do
+          struct.__types__ # fake an existing cache
           struct.const_set(:B, Class.new(Dry::Struct))
         end
 
@@ -134,6 +136,7 @@ RSpec.describe Dry::Struct::Union do
 
         context "when a struct is deleted" do
           before do
+            struct.__types__ # fake an existing cache
             struct.send(:remove_const, :A)
           end
 

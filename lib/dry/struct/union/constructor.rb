@@ -130,6 +130,7 @@ module Dry
         # @block [Proc] To be cached
         # @return [Any]
         def compute_cache(name, current_key = key, &block)
+          # block.call
           cache[current_key][name] ||= block.call
         ensure # Remove old keys to prevent memory leaks
           if @latest_key != current_key
