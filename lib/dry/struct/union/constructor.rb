@@ -19,7 +19,7 @@ module Dry
         end
 
         # @see Dry::Struct::Union
-        attribute(:cache, Types::Hash.default { Hash.new(EMPTY_HASH.dup) })
+        attribute(:cache, Types::Hash.default { EMPTY_HASH.dup })
         attribute? :include, Types::Constants.constrained(min_size: 1)
         attribute :exclude, Types::Constants.default(EMPTY_ARRAY)
         attribute :scope, Types::Instance(Module)
@@ -129,9 +129,8 @@ module Dry
         # @name [Symbol] Method name
         # @block [Proc] To be cached
         # @return [Any]
-        def compute_cache(name, current_key = key, &block)
-          # block.call
-          cache[current_key][name] ||= block.call
+        def compute_cache(name, current_key = key.unshift(name), &block)
+          cache[current_key] ||= block.call
         ensure # Remove old keys to prevent memory leaks
           if @latest_key != current_key
             cache.delete(@latest_key)
